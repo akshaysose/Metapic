@@ -70,8 +70,7 @@ router.post('/:groupCode/find-my-photos', userJwt, upload.single('selfie'), asyn
     }
 
     // 4. Compare with Group Photos
-    const threshold = parseFloat(process.env.MATCH_THRESHOLD || '0.48')
-    const matches = []
+    const threshold = parseFloat(process.env.MATCH_THRESHOLD || '0.38')
 
     const missingEmbeddings = group.photos.filter((p) => {
       const hasMulti = Array.isArray(p.embeddings) && p.embeddings.length > 0
@@ -101,25 +100,57 @@ router.post('/:groupCode/find-my-photos', userJwt, upload.single('selfie'), asyn
       }
     }
 
-    for (let p of group.photos) {
-      const candidates = (Array.isArray(p.embeddings) && p.embeddings.length > 0)
-        ? p.embeddings
-        : (Array.isArray(p.embedding) && p.embedding.length > 0 ? [p.embedding] : [])
+    const buildMatches = (photos) => {
+      const found = []
+      for (const p of photos) {
+        const candidates = (Array.isArray(p.embeddings) && p.embeddings.length > 0)
+          ? p.embeddings
+          : (Array.isArray(p.embedding) && p.embedding.length > 0 ? [p.embedding] : [])
 
-      if (candidates.length === 0) continue
+        if (candidates.length === 0) continue
 
-      let bestScore = -1
-      for (const candidate of candidates) {
-        const score = faceClient.cosine(selfieEmbedding, candidate)
-        if (score > bestScore) bestScore = score
+        let bestScore = -1
+        for (const candidate of candidates) {
+          const score = faceClient.cosine(selfieEmbedding, candidate)
+          if (score > bestScore) bestScore = score
+        }
+
+        if (bestScore >= threshold) {
+          found.push({ _id: p._id, url: p.url, score: bestScore })
+        }
       }
+      return found.sort((a, b) => b.score - a.score)
+    }
 
-      if (bestScore >= threshold) {
-        matches.push({ _id: p._id, url: p.url, score: bestScore })
+    let matches = buildMatches(group.photos)
+
+    if (matches.length === 0) {
+      try {
+        const photosWithUrls = group.photos.filter((p) => !!p.url)
+        if (photosWithUrls.length > 0) {
+          const bulk = await faceClient.computeBulkEmbeddingsFromUrls(photosWithUrls.map((p) => p.url))
+          const byUrl = new Map((bulk.items || []).map((it) => {
+            const arr = Array.isArray(it.embeddings)
+              ? it.embeddings
+              : (Array.isArray(it.embedding) && it.embedding.length > 0 ? [it.embedding] : [])
+            return [it.url, arr]
+          }))
+
+          for (const p of photosWithUrls) {
+            const arr = byUrl.get(p.url) || []
+            if (arr.length > 0) {
+              p.embeddings = arr
+              await p.save()
+            }
+          }
+
+          matches = buildMatches(group.photos)
+        }
+      } catch (refreshErr) {
+        console.warn('Embedding refresh retry skipped:', refreshErr.message)
       }
     }
 
-    matches.sort((a, b) => b.score - a.score)
     res.json({ matches })
 
   } catch(e) { 

@@ -1,10 +1,8 @@
 import numpy as np
 import cv2
-import insightface
 from insightface.app import FaceAnalysis
-import tempfile
 import requests
-from io import BytesIO
+import os
 
 class ModelManager:
     """
@@ -14,11 +12,31 @@ class ModelManager:
     """
 
     def __init__(self):
-        # Load antelopev2 / arcface model
-        # FaceAnalysis will download model weights automatically to ~/.insightface
-       self.app = FaceAnalysis(name="antelopev2", allowed_modules=['detection', 'recognition'])
-        self.app.prepare(ctx_id=0 if self._has_gpu() else -1)
-        # ctx_id=-1 uses CPU
+        # In hosted environments (for example Hugging Face Spaces), model download
+        # can fail for one package name. Try a small fallback chain.
+        model_root = os.getenv("INSIGHTFACE_HOME", "/tmp/.insightface")
+        candidates = ["buffalo_l", "buffalo_m", "antelopev2"]
+        last_error = None
+        self.app = None
+
+        for name in candidates:
+            try:
+                app = FaceAnalysis(
+                    name=name,
+                    root=model_root,
+                    allowed_modules=["detection", "recognition"],
+                )
+                app.prepare(ctx_id=0 if self._has_gpu() else -1)
+                self.app = app
+                break
+            except Exception as exc:
+                last_error = exc
+
+        if self.app is None:
+            raise RuntimeError(
+                "InsightFace model init failed for all candidates "
+                f"{candidates} under root '{model_root}'. Last error: {last_error}"
+            )
 
     def _has_gpu(self):
         # basic: check if MXNet GPU available; if not, assume CPU

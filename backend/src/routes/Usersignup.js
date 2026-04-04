@@ -239,8 +239,28 @@ router.post('/user/group/:code/search', userJwt, upload.single('selfie'), async 
             return res.status(400).json({ message: "No face detected in selfie." });
         }
 
-        const matches = [];
-        const threshold = 0.48; 
+        const threshold = parseFloat(process.env.MATCH_THRESHOLD || '0.38');
+
+        const buildMatches = (photos) => {
+            const found = [];
+            for (const photo of photos) {
+                const candidates = (photo.embeddings && photo.embeddings.length > 0)
+                    ? photo.embeddings
+                    : (photo.embedding && photo.embedding.length > 0 ? [photo.embedding] : []);
+                if (candidates.length === 0) continue;
+
+                let bestScore = -1;
+                for (const faceEmbedding of candidates) {
+                    const score = faceClient.cosine(selfieEmbedding, faceEmbedding);
+                    if (score > bestScore) bestScore = score;
+                }
+
+                if (bestScore >= threshold) {
+                    found.push({ ...photo.toObject(), score: bestScore });
+                }
+            }
+            return found.sort((a, b) => b.score - a.score);
+        };
 
         const missingEmbeddings = group.photos.filter((photo) => {
             const hasMulti = Array.isArray(photo.embeddings) && photo.embeddings.length > 0;
@@ -270,23 +290,34 @@ router.post('/user/group/:code/search', userJwt, upload.single('selfie'), async 
             }
         }
 
-        // 2. Compare against ALL photos
-        for (const photo of group.photos) {
-            // Skip photos with no faces
-            const candidates = (photo.embeddings && photo.embeddings.length > 0)
-                ? photo.embeddings
-                : (photo.embedding && photo.embedding.length > 0 ? [photo.embedding] : []);
-            if (candidates.length === 0) continue;
+        // First pass with stored embeddings.
+        let matches = buildMatches(group.photos);
 
-            // Check if ANY face in the photo matches the Selfie
-            // photo.embeddings is an Array of Arrays (multiple faces)
-            const isMatch = candidates.some(faceEmbedding => {
-                const score = faceClient.cosine(selfieEmbedding, faceEmbedding);
-                return score > threshold;
-            });
+        // If everything misses, force-refresh all group embeddings once and retry.
+        if (matches.length === 0) {
+            try {
+                const photosWithUrls = group.photos.filter((photo) => !!photo.url);
+                if (photosWithUrls.length > 0) {
+                    const bulk = await faceClient.computeBulkEmbeddingsFromUrls(photosWithUrls.map((p) => p.url));
+                    const byUrl = new Map((bulk.items || []).map((it) => {
+                        const arr = Array.isArray(it.embeddings)
+                            ? it.embeddings
+                            : (Array.isArray(it.embedding) && it.embedding.length > 0 ? [it.embedding] : []);
+                        return [it.url, arr];
+                    }));
 
-            if (isMatch) {
-                matches.push(photo);
+                    for (const photo of photosWithUrls) {
+                        const arr = byUrl.get(photo.url) || [];
+                        if (arr.length > 0) {
+                            photo.embeddings = arr;
+                            await photo.save();
+                        }
+                    }
+
+                    matches = buildMatches(group.photos);
+                }
+            } catch (refreshErr) {
+                console.warn('Embedding refresh retry skipped:', refreshErr.message);
             }
         }
 

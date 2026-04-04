@@ -1,8 +1,8 @@
 fastapi
+insightface
 uvicorn[standard]
 pydantic
 numpy
 opencv-python-headless
-insightface
 aiofiles
 python-multipart
