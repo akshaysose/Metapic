@@ -16,7 +16,7 @@ class ModelManager:
     def __init__(self):
         # Load antelopev2 / arcface model
         # FaceAnalysis will download model weights automatically to ~/.insightface
-        self.app = FaceAnalysis(name='antelopev2', allowed_modules=['detection', 'recognition'])
+        self.app = FaceAnalysis(name="buffalo_s", allowed_modules=['detection', 'recognition'])
         self.app.prepare(ctx_id=0 if self._has_gpu() else -1)
         # ctx_id=-1 uses CPU
 
