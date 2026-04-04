@@ -1,0 +1,303 @@
+# KwikPic Project Context (GPTREAD.me)
+
+This file contains comprehensive context about the KwikPic project, designed to help an AI understand the entire codebase, logic, and structure.
+
+---
+
+## 1. Project Overview
+
+**KwikPic** is a MERN-stack application with a Python microservice for face recognition. It allows photographers to upload event photos, and guests to find their specific photos by uploading a selfie.
+
+**Core Workflow:**
+1.  **Photographer** creates a Group (Event) and uploads photos.
+2.  **Backend** sends photos to **Face Service**.
+3.  **Face Service** detects faces and generates 512-dimensional embeddings.
+4.  **Backend** stores photo metadata + embeddings in MongoDB.
+5.  **Client (Guest)** joins the group using a code and uploads a selfie.
+6.  **Face Service** generates an embedding for the selfie.
+7.  **Backend** compares the selfie embedding with stored photo embeddings (Cosine Similarity) and returns matches.
+
+---
+
+## 2. Tech Stack
+
+-   **Frontend**: React (Vite), Tailwind CSS, React Router.
+-   **Backend**: Node.js, Express, Mongoose (MongoDB).
+-   **Face Service**: Python, FastAPI, InsightFace (antelopev2 model).
+-   **Infrastructure**: Docker, Docker Compose.
+-   **Storage**: Cloudinary (Images), MongoDB (Metadata & Embeddings).
+
+---
+
+## 3. Folder Structure
+
+```text
+/
+├── backend/                  # Node.js Express Server
+│   ├── src/
+│   │   ├── config/           # DB connection
+│   │   ├── middleware/       # Auth middleware
+│   │   ├── models/           # Mongoose Schemas (Group, Photo, User, etc.)
+│   │   ├── routes/           # API Routes
+│   │   ├── services/         # Helper services (Email, etc.)
+│   │   └── app.js            # Express App entry point
+│   ├── server.js             # Server startup
+│   └── package.json
+├── face-service/             # Python FastAPI Microservice
+│   ├── app/
+│   │   ├── main.py           # FastAPI entry point
+│   │   ├── model_manager.py  # InsightFace logic
+│   │   └── utils.py
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/                 # React Vite App
+│   ├── src/
+│   │   ├── components/       # Reusable UI components
+│   │   ├── pages/            # Page views (Home, Dashboard, Join, etc.)
+│   │   ├── App.jsx           # Main Router
+│   │   └── main.jsx          # React entry point
+│   ├── vite.config.mjs
+│   └── tailwind.config.cjs
+├── docker-compose.yml        # Orchestration
+└── README.md
+```
+
+---
+
+## 4. Database Schema (Mongoose)
+
+### Group Model (`backend/src/models/Group.js`)
+Represents an Event.
+-   `name`: String
+-   `code`: String (Unique 6-digit access code)
+-   `photographer`: ObjectId (Ref: Photographer)
+-   `photos`: [ObjectId] (Ref: Photo)
+-   `participants`: [ObjectId] (Ref: User) - Clients who joined.
+
+### Photo Model (`backend/src/models/Photo.js`)
+Represents a single uploaded image.
+-   `url`: String (Cloudinary URL)
+-   `group`: ObjectId (Ref: Group)
+-   `uploader`: ObjectId (Ref: Photographer)
+-   `embeddings`: [[Number]] (Array of 512-float vectors, one for each face found)
+
+---
+
+## 5. Key Logic & Source Code
+
+### Backend Entry Point (`backend/src/app.js`)
+Sets up Express, CORS, Database connection, and Routes.
+
+```javascript
+const express = require('express')
+const cors = require('cors')
+const mongoose = require('mongoose')
+const rateLimit = require('express-rate-limit')
+require('dotenv').config()
+const clientRoutes = require('./routes/client')
+const photoRoutes = require('./routes/photo')
+const userroutes = require('./routes/Usersignup')
+const photographerroute = require('./routes/photographersignup')
+const userdashboard = require('./routes/userdashboard')
+const photographerGroup=require('./routes/photographerGroups')
+
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(()=>console.log('MongoDB connected'))
+  .catch(err=>console.error('Mongo connect err',err))
+
+const app = express()
+app.use(cors({
+    origin: ["http://localhost:5173", "http://localhost:3000","https://metapic.vercel.app","https://metapic.org",
+        "https://www.metapic.org"], 
+    credentials: true, 
+    methods: ["GET", "POST", "PUT", "DELETE"]
+}));
+
+// Simple health check endpoint for cron-job.org
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
+
+// security
+const limiter = rateLimit({ windowMs: 60*1000, max: 120 })
+app.use(limiter)
+
+// routes
+app.use('/api/client', clientRoutes)
+app.use('/api/photo', photoRoutes)
+app.use('/api',userroutes)
+app.use('/api',photographerroute)
+app.use('/api',userdashboard)
+app.use('/api/photographer',photographerGroup)
+// health
+app.get('/health', (req,res)=>res.json({ ok:true }))
+module.exports = app
+```
+
+### Face Service Logic (`face-service/app/main.py`)
+FastAPI service that accepts images and returns embeddings.
+
+```python
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse
+import uvicorn
+from .model_manager import ModelManager
+from typing import List
+from pydantic import BaseModel
+
+app = FastAPI(title='KwikPic Face Service (InsightFace)')
+
+model_mgr = ModelManager()
+
+class UrlsRequest(BaseModel):
+    urls: List[str]
+
+@app.post("/embed")
+async def embed_file(file: UploadFile = File(...)):
+    content = await file.read()
+    emb = model_mgr.embed_bytes(content)
+    return JSONResponse({"embedding": emb.tolist()})
+
+@app.post("/embed-urls")
+async def embed_urls(req: UrlsRequest):
+    res = []
+    for url in req.urls:
+        emb = model_mgr.embed_url(url)
+        res.append({"url": url, "embedding": emb.tolist()})
+    return {"items": res}
+
+@app.get("/health")
+async def health():
+    return {"ok": True}
+
+# For local debug:
+if __name__ == "__main__":
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+```
+
+### Face Analysis Logic (`face-service/app/model_manager.py`)
+Uses InsightFace to detect faces and compute embeddings.
+
+```python
+import numpy as np
+import cv2
+import insightface
+from insightface.app import FaceAnalysis
+import tempfile
+import requests
+from io import BytesIO
+
+class ModelManager:
+    """
+    Loads InsightFace FaceAnalysis (antelope) and exposes embedding helpers.
+    """
+
+    def __init__(self):
+        # Load antelopev2 / arcface model
+        self.app = FaceAnalysis(name='antelopev2', allowed_modules=['detection', 'recognition'])
+        self.app.prepare(ctx_id=0 if self._has_gpu() else -1)
+
+    def _has_gpu(self):
+        try:
+            import mxnet as mx
+            return mx.context.num_gpus() > 0
+        except Exception:
+            return False
+
+    def _read_bytes(self, bts):
+        arr = np.frombuffer(bts, np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        return img
+
+    def embed_bytes(self, bts):
+        img = self._read_bytes(bts)
+        if img is None:
+            raise ValueError("Invalid image")
+        faces = self.app.get(img)
+        if not faces:
+            return np.zeros(512, dtype=float)
+        # choose the largest face
+        face = max(faces, key=lambda f: f.bbox_area)
+        emb = face.embedding
+        return np.array(emb, dtype=float)
+
+    def embed_url(self, url):
+        r = requests.get(url, timeout=20)
+        return self.embed_bytes(r.content)
+```
+
+### Frontend Routing (`frontend/src/App.jsx`)
+React Router setup showing all available pages.
+
+```jsx
+import React from 'react'
+import { Routes, Route } from 'react-router-dom'
+import Home from './pages/Home'
+import Auth from './pages/Auth'
+import Profile from './pages/Profile' 
+import UserDashboard from './pages/UserDashboard'
+import UserGroupView from './pages/UserGroupView'
+import ClientJoin from './pages/ClientJoin'
+import MagicJoin from './pages/MagicJoin'
+import PhotographerDashboard from './pages/PhotographerDashboard'
+import GroupManager from './pages/GroupManager'
+import Navbar from './components/Navbar'
+
+export default function App() {
+  return (
+    <div className="min-h-screen bg-lightcyan text-deepblue">
+      <Navbar />
+      <main className="p-4 pt-24">
+        <Routes>
+          <Route path="/login" element={<Auth />} />
+          <Route path="/signup" element={<Auth />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/join" element={<ClientJoin />} />
+          <Route path="/join/:code" element={<MagicJoin />} />
+          <Route path="/group/:code" element={<UserGroupView />} />
+          <Route path="/photographer/dashboard" element={<PhotographerDashboard />} />
+          <Route path="/photographer/group/:code" element={<GroupManager />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/" element={<Home />} />
+        </Routes>
+      </main>
+    </div>
+  )
+}
+```
+
+---
+
+## 6. Environment Variables
+
+**Backend (`backend/.env`)**
+```env
+MONGO_URI=mongodb://mongo:27017/kwikpic
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+JWT_SECRET=...
+FACE_SERVICE_URL=http://face-service:8000
+SMTP_HOST=...
+SMTP_PORT=...
+SMTP_USER=...
+SMTP_PASS=...
+FRONTEND_URL=http://localhost:5173
+```
+
+---
+
+## 7. API Endpoints Summary
+
+-   **POST /api/client/join**: Join a group with a code.
+-   **POST /api/client/:groupCode/upload-selfie**: Upload selfie for matching.
+-   **POST /api/groups**: Create a new group (Photographer).
+-   **POST /api/groups/:id/upload**: Upload photos to group (Photographer).
+-   **GET /api/photo/:photoId/download**: Secure download link for a photo.
+-   **POST /api/signup / /api/login**: User/Photographer authentication.
+
+---
+
+This file provides a complete overview of the KwikPic system for AI analysis.

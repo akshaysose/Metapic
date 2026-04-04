@@ -1,0 +1,38 @@
+/* Add this to your existing AuthForm.css */
+
+.tabs-container {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab-btn {
+    flex: 1; /* Makes buttons equal width */
+    padding: 12px;
+    border: none;
+    background: #f9f9f9;
+    color: #666;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.tab-btn:first-child {
+    border-top-left-radius: 4px;
+}
+
+.tab-btn:last-child {
+    border-top-right-radius: 4px;
+}
+
+/* Active State - The Teal Color */
+.tab-btn.active {
+    background-color: #0B4F6C; /* Matches your screenshot button color */
+    color: white;
+    font-weight: bold;
+}
+
+.tab-btn:not(.active):hover {
+    background-color: #e0e0e0;
+}

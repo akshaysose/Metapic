@@ -1,0 +1,193 @@
+Metapic Deployment Guide (Very Simple)
+
+Read this first:
+- Vercel and Netlify are great for frontend hosting.
+- Your project also has a Node backend and a Python face-service.
+- Vercel/Netlify free plans do not run this full backend + AI service reliably as long-running servers.
+- So the practical free setup is:
+  1) Frontend on Vercel or Netlify
+  2) Backend on Render (free)
+  3) Face-service on Render (free)
+  4) MongoDB Atlas free cluster
+  5) Cloudinary free account
+
+Architecture you will deploy:
+- frontend -> calls backend API
+- backend -> calls face-service API + MongoDB + Cloudinary
+- face-service -> generates face embeddings
+
+------------------------------------------------------------
+PART 0: Pre-deploy checklist
+------------------------------------------------------------
+1. Push your latest code to GitHub.
+2. Confirm these folders exist in repo:
+   - frontend
+   - backend
+   - face-service
+3. Create accounts (all free tiers):
+   - GitHub
+   - MongoDB Atlas
+   - Cloudinary
+   - Render
+   - Vercel or Netlify
+
+Important code note:
+- In frontend/src/components/Usersignup.jsx there is a hardcoded API URL:
+  const API_URL = 'http://localhost:4000/api';
+- For production, change it to use VITE_API like other files, for example:
+  const API_URL = `${import.meta.env.VITE_API}/api`;
+- Commit this change before deploying.
+
+------------------------------------------------------------
+PART 1: Prepare database (MongoDB Atlas free)
+------------------------------------------------------------
+1. Go to MongoDB Atlas -> Create Project -> Build a Free Cluster.
+2. Create a DB user (username/password).
+3. Network Access -> Add IP:
+   - For easy start: allow 0.0.0.0/0 (you can tighten later).
+4. Click Connect -> Drivers -> copy connection string.
+5. Replace <username> and <password> in the URI.
+
+You will use this value later as MONGO_URI.
+
+------------------------------------------------------------
+PART 2: Prepare Cloudinary
+------------------------------------------------------------
+1. Login to Cloudinary dashboard.
+2. Copy these values:
+   - CLOUDINARY_CLOUD_NAME
+   - CLOUDINARY_API_KEY
+   - CLOUDINARY_API_SECRET
+
+------------------------------------------------------------
+PART 3: Deploy face-service on Render (free)
+------------------------------------------------------------
+1. Open Render -> New + -> Web Service.
+2. Connect your GitHub repo.
+3. Configure:
+   - Name: metapic-face-service
+   - Environment: Docker
+   - Root Directory: face-service
+   - Branch: main (or your branch)
+4. Click Create Web Service.
+5. Wait for deploy complete.
+6. Copy service URL, example:
+   - https://metapic-face-service.onrender.com
+7. Test health:
+   - open https://metapic-face-service.onrender.com/health
+   - should show: {"ok": true}
+
+------------------------------------------------------------
+PART 4: Deploy backend on Render (free)
+------------------------------------------------------------
+1. Render -> New + -> Web Service.
+2. Connect same GitHub repo.
+3. Configure:
+   - Name: metapic-backend
+   - Environment: Docker
+   - Root Directory: backend
+   - Branch: main
+4. Add Environment Variables:
+   - MONGO_URI=<your atlas uri>
+   - CLOUDINARY_CLOUD_NAME=<from cloudinary>
+   - CLOUDINARY_API_KEY=<from cloudinary>
+   - CLOUDINARY_API_SECRET=<from cloudinary>
+   - JWT_SECRET=<long random string>
+   - FACE_SERVICE_URL=https://metapic-face-service.onrender.com
+   - FRONTEND_URL=<your frontend url, add later then redeploy>
+   - MATCH_THRESHOLD=0.48
+5. Click Create Web Service.
+6. After deploy, test:
+   - https://metapic-backend.onrender.com/health
+   - should return OK/json health.
+
+If backend cannot call face-service:
+- Check FACE_SERVICE_URL is exact Render URL.
+- Ensure face-service is awake (free services may sleep).
+
+------------------------------------------------------------
+PART 5A: Deploy frontend on Vercel (free)
+------------------------------------------------------------
+1. Open Vercel -> Add New -> Project.
+2. Import your GitHub repo.
+3. Set project settings:
+   - Framework preset: Vite
+   - Root Directory: frontend
+   - Build command: npm run build
+   - Output directory: dist
+4. Add Environment Variable:
+   - VITE_API=https://metapic-backend.onrender.com
+5. Deploy.
+6. Copy your Vercel URL.
+7. Go back to Render backend env and set:
+   - FRONTEND_URL=<your vercel url>
+8. Redeploy backend once after updating FRONTEND_URL.
+
+------------------------------------------------------------
+PART 5B: Deploy frontend on Netlify (free)
+------------------------------------------------------------
+1. Open Netlify -> Add new site -> Import from Git.
+2. Select your GitHub repo.
+3. Build settings:
+   - Base directory: frontend
+   - Build command: npm run build
+   - Publish directory: frontend/dist
+4. Add Environment Variable:
+   - VITE_API=https://metapic-backend.onrender.com
+5. Deploy site.
+6. Copy your Netlify URL.
+7. Go back to Render backend env and set:
+   - FRONTEND_URL=<your netlify url>
+8. Redeploy backend once.
+
+------------------------------------------------------------
+PART 6: Final testing (very important)
+------------------------------------------------------------
+1. Open frontend deployed URL.
+2. Sign up / log in.
+3. Create group as photographer.
+4. Upload event photos.
+5. Join group as user.
+6. Upload selfie.
+7. Confirm matched photos are shown.
+
+If selfie matching fails:
+- Open backend logs in Render and check errors.
+- Open face-service logs in Render and check model loading.
+- Free Render may sleep; first request can be slow (30-60s).
+
+------------------------------------------------------------
+Common issues and quick fixes
+------------------------------------------------------------
+Issue: CORS blocked in browser
+Fix:
+- FRONTEND_URL in backend env must match exact deployed frontend URL.
+- If you use both www and non-www, allow both in backend CORS list.
+
+Issue: Frontend still calling localhost
+Fix:
+- Set VITE_API in Vercel/Netlify env.
+- Redeploy frontend after changing env.
+- Remove any hardcoded localhost URLs from frontend code.
+
+Issue: 500 on face search
+Fix:
+- Check FACE_SERVICE_URL in backend env.
+- Ensure face-service /health works.
+- Check logs for face-service memory/model errors.
+
+Issue: Slow first request
+Fix:
+- Free Render services sleep when idle. This is normal.
+
+------------------------------------------------------------
+Recommended order (short version)
+------------------------------------------------------------
+1. Deploy face-service on Render.
+2. Deploy backend on Render (use face-service URL in env).
+3. Deploy frontend on Vercel or Netlify (use backend URL in VITE_API).
+4. Update FRONTEND_URL in backend env.
+5. Redeploy backend.
+6. Test full flow.
+
+Done. Your app is live on free services.

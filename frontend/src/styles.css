@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { font-family: 'Poppins', sans-serif; }
+html, body {
+  overscroll-behavior-y: none; /* Prevents the "pull down to refresh" bounce effect on some browsers */
+  -webkit-tap-highlight-color: transparent; /* Removes the grey highlight box when tapping buttons on mobile */
+}

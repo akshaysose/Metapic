@@ -1,0 +1,138 @@
+/* frontend/src/components/AuthForm.css */
+
+/* --- Color Palette --- */
+:root {
+    --primary-teal: #0B4F6C;   /* KwikPic Dark Teal */
+    --light-bg: #E3F2F7;       /* Light background */
+    --white: #FFFFFF;
+    --text-dark: #333333;
+    --text-light: #666666;
+    --border-color: #E0E0E0;
+}
+
+/* --- Main Layout --- */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    padding: 20px;
+    background-color: var(--light-bg); /* Optional: Light background for the page */
+}
+
+.auth-box {
+    background: var(--white);
+    padding: 2.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+.auth-box h2 {
+    text-align: center;
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-dark);
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* --- Tabs (User vs Photographer) --- */
+.tabs-container {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    background: #f9f9f9;
+    color: var(--text-light);
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.tab-btn:first-child {
+    border-top-left-radius: 4px;
+}
+
+.tab-btn:last-child {
+    border-top-right-radius: 4px;
+}
+
+/* Active Tab Style */
+.tab-btn.active {
+    background-color: var(--primary-teal);
+    color: var(--white);
+    font-weight: bold;
+}
+
+.tab-btn:not(.active):hover {
+    background-color: #ececec;
+}
+
+/* --- Form Inputs --- */
+.input-group {
+    margin-bottom: 1rem;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: var(--primary-teal);
+    box-shadow: 0 0 0 2px rgba(11, 79, 108, 0.1);
+}
+
+/* --- Submit Button --- */
+.submit-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--primary-teal);
+    color: var(--white);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    transition: background-color 0.3s;
+}
+
+.submit-btn:hover {
+    background-color: #093e55; /* Slightly darker teal */
+}
+
+/* --- Toggle Text --- */
+.toggle-text {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: var(--primary-teal);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.toggle-text:hover {
+    text-decoration: underline;
+}
