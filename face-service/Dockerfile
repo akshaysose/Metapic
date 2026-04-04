@@ -18,6 +18,7 @@ COPY requirements.txt .
 # Install dependencies (FIX)
 RUN pip install --no-cache-dir numpy==1.23.5
 RUN pip install --no-cache-dir insightface==0.7.3
+RUN pip install --no-cache-dir onnxruntime
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app
