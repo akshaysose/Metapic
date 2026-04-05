@@ -7,7 +7,9 @@ export default function MagicJoin() {
     const { code } = useParams();
     const { userToken } = useContext(AuthContext);
     const navigate = useNavigate();
-    const API = import.meta.env.VITE_API || 'http://localhost:5000';
+    const API = import.meta.env.DEV
+      ? 'http://localhost:4000'
+      : (import.meta.env.VITE_API || 'http://localhost:4000');
 
     useEffect(() => {
         const attemptJoin = async () => {

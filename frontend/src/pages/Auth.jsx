@@ -9,8 +9,10 @@ export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Initialize API URL from your environment or default to localhost
-  const API = import.meta.env.VITE_API || 'http://localhost:5000';
+  // In local dev, always use local backend to avoid accidental remote env override.
+  const API = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : (import.meta.env.VITE_API || 'http://localhost:4000');
 
   // State management
   const [isSignup, setIsSignup] = useState(location.pathname.includes('signup'));
@@ -134,19 +136,28 @@ export default function Auth() {
     // --- End validation ---
 
     try {
-      const rolePath = userType === 'user' ? '/api' : '/api/photographer';
-      const actionPath = isSignup ? '/signup' : '/login';
-      const fullUrl = `${API}${rolePath}${actionPath}`;
+      const endpointMap = {
+        user: {
+          signup: '/api/signup',
+          login: '/api/login'
+        },
+        photographer: {
+          signup: '/api/photographer/signup',
+          login: '/api/photographer/login'
+        }
+      };
+      const modeKey = isSignup ? 'signup' : 'login';
+      const fullUrl = `${API}${endpointMap[userType][modeKey]}`;
 
       let payload = {};
       if (userType === 'user') {
         payload = isSignup 
-          ? { name: formData.name, email: formData.email, password: formData.password }
-          : { name: formData.name, password: formData.password };
+          ? { name: formData.name.trim(), email: formData.email.trim(), password: formData.password.trim() }
+          : { name: formData.name.trim(), password: formData.password.trim() };
       } else {
         payload = isSignup 
-          ? { name: formData.name, businessName: formData.businessName, email: formData.email, password: formData.password }
-          : { email: formData.email, password: formData.password };
+          ? { name: formData.name.trim(), businessName: formData.businessName.trim(), email: formData.email.trim(), password: formData.password.trim() }
+          : { email: formData.email.trim(), password: formData.password.trim() };
       }
 
       const response = await axios.post(fullUrl, payload);
@@ -182,7 +193,11 @@ export default function Auth() {
 
     } catch (error) {
       console.error(error);
-      const errMsg = error.response?.data?.message || "An error occurred";
+      const is404 = error.response?.status === 404;
+      const errMsg = error.response?.data?.message
+        || (is404 ? `Endpoint not found (404): ${error.config?.url || 'unknown URL'}` : null)
+        || error.message
+        || "An error occurred";
       setMessage({ text: errMsg, type: 'error' });
     }
   };

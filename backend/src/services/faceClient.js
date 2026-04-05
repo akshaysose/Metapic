@@ -15,20 +15,30 @@ function normalizeEmbeddings(payload = {}) {
 
 module.exports = {
   computeEmbeddingFromBuffer: async (buffer, filename='blob.jpg') => {
-    const form = new FormData()
-    form.append('file', buffer, { filename })
-    const res = await axios.post(`${FACE_URL}/embed`, form, { headers: form.getHeaders(), timeout: 60000 })
-    const embeddings = normalizeEmbeddings(res.data)
-    return {
-      ...res.data,
-      embedding: embeddings[0] || [],
-      embeddings
+    try {
+      const form = new FormData()
+      form.append('file', buffer, { filename })
+      const res = await axios.post(`${FACE_URL}/embed`, form, { headers: form.getHeaders(), timeout: 60000 })
+      const embeddings = normalizeEmbeddings(res.data)
+      return {
+        ...res.data,
+        embedding: embeddings[0] || [],
+        embeddings
+      }
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.response?.data?.message || err.code || err.message
+      throw new Error(`Face service unreachable at ${FACE_URL}/embed (${detail})`)
     }
   },
   computeBulkEmbeddingsFromUrls: async (urls) => {
-    // For convenience; face-service supports URL or file
-    const res = await axios.post(`${FACE_URL}/embed-urls`, { urls }, { timeout: 600000 })
-    return res.data
+    try {
+      // For convenience; face-service supports URL or file
+      const res = await axios.post(`${FACE_URL}/embed-urls`, { urls }, { timeout: 600000 })
+      return res.data
+    } catch (err) {
+      const detail = err.response?.data?.detail || err.response?.data?.message || err.code || err.message
+      throw new Error(`Face service unreachable at ${FACE_URL}/embed-urls (${detail})`)
+    }
   },
   cosine: (a,b) => {
     if(!a||!b) return 0

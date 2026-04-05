@@ -11,7 +11,9 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const API = import.meta.env.VITE_API || 'http://localhost:5000';
+  const API = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : (import.meta.env.VITE_API || 'http://localhost:4000');
 
   // Fetch User's Groups on Load
   useEffect(() => {

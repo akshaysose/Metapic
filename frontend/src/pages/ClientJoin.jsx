@@ -13,7 +13,9 @@ export default function ClientJoin() {
   const [initializing, setInitializing] = useState(true) // New state to prevent instant redirect
   const [error, setError] = useState('')
 
-  const API = import.meta.env.VITE_API || 'http://localhost:5000'
+  const API = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : (import.meta.env.VITE_API || 'http://localhost:4000')
 
   // Step 1: ROBUST Security Check
   useEffect(() => {

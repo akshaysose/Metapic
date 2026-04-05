@@ -17,7 +17,9 @@ export default function UserGroupView() {
   const [searching, setSearching] = useState(false);
   const [selfie, setSelfie] = useState(null);
 
-  const API = import.meta.env.VITE_API || 'http://localhost:5000';
+  const API = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : (import.meta.env.VITE_API || 'http://localhost:4000');
 
   // 1. Fetch Group Data
   useEffect(() => {

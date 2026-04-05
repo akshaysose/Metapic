@@ -81,7 +81,9 @@ export default function GroupManager() {
   const [selectedPhotos, setSelectedPhotos] = useState([]);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-  const API = import.meta.env.VITE_API || 'http://localhost:5000';
+  const API = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : (import.meta.env.VITE_API || 'http://localhost:4000');
 
   // Fetch Group Data
   const fetchGroup = async () => {

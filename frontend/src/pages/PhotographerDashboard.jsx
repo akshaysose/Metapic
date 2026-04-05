@@ -13,7 +13,9 @@ export default function PhotographerDashboard() {
   const [newGroupName, setNewGroupName] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const API = import.meta.env.VITE_API || 'http://localhost:5000';
+  const API = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : (import.meta.env.VITE_API || 'http://localhost:4000');
 
   // Fetch Groups
 useEffect(() => {

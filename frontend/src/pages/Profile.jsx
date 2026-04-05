@@ -11,7 +11,9 @@ export default function Profile() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
-  const API = import.meta.env.VITE_API || 'http://localhost:5000'
+  const API = import.meta.env.DEV
+    ? 'http://localhost:4000'
+    : (import.meta.env.VITE_API || 'http://localhost:4000')
 
   // Determine current avatar to show (Preview > Profile Data > Placeholder)
   const currentAvatar = previewUrl || profile?.selfieUrl || profile?.avatarUrl || 'https://via.placeholder.com/150'
