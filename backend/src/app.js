@@ -16,9 +16,8 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 
 const app = express()
 app.use(cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000","https://metapic.vercel.app","https://metapic.org",         // <--- Your NEW Domain
-        "https://www.metapic.org"], // Allow both Vite and React ports + localhost variants
-    credentials: true, // Important for cookies/headers
+    origin: true,
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
