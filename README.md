@@ -136,4 +136,4 @@ Here are the main ways the app talks to the server:
 
 ---
 
-*Documentation created by Antigravity.*
+
