@@ -274,7 +274,7 @@ export default function Home() {
       <footer className="bg-gray-900 text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h3 className="text-2xl font-bold text-white mb-4 tracking-wider">Metapic</h3>
-          <p className="mb-8 font-medium">Made by Akshay Sose</p>
+          <a href="https://akshay-sose-portfolio.vercel.app/" target="_blank" rel="noopener noreferrer" className="mb-8 font-medium hover:underline inline-block">Contact Me</a>
           <div className="border-t border-gray-800 pt-8 text-sm">
             &copy; {new Date().getFullYear()} Metapic. All rights reserved.
           </div>
