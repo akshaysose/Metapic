@@ -28,7 +28,7 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex flex-col leading-tight">
           <Link to="/" className="text-2xl font-bold text-primary">Metapic</Link>
-          <span className="text-xs text-gray-500">Made by Akshay Sose</span>
+          <a href="https://akshay-sose-portfolio.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-xs text-gray-500 hover:underline">Contact Me</a>
         </div>
 
         {/* Desktop nav */}
@@ -116,6 +116,7 @@ export default function Navbar() {
               <>
                 <Link to="/profile" className="px-3 py-2 border rounded">Profile</Link>
                 <Link to={dashboardLink} className="px-3 py-2 border rounded">My Groups</Link>
+                  <a href="https://akshay-sose-portfolio.vercel.app/" target="_blank" rel="noopener noreferrer" className="px-3 py-2 border rounded text-center">Contact Me</a>
                 <button onClick={handleLogout} className="px-3 py-2 border rounded text-left text-red-600">Logout</button>
               </>
             )}
